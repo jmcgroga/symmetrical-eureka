@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+*.xcodeproj
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+
+# Credentials
+.netrc
+
+# Build artifacts
+*.o
+*.lo
+*.la
+*.al
+.libs
+*.so
+*.so.*
+*.a
+*.dylib
+
+# Test artifacts
+*.gcov
+*.profdata
+*.profraw
