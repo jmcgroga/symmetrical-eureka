@@ -34,6 +34,18 @@ public struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("Apple Intelligence Mode", selection: $settings.aiSummarizationMode) {
+                        ForEach(AppSettings.AISummarizationMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                } header: {
+                    Text("AI Title Generation")
+                } footer: {
+                    Text(settings.aiSummarizationMode.description + ". Entry titles are automatically generated using Apple Intelligence.")
+                }
+
+                Section {
                     Toggle("Enable Notifications", isOn: $settings.notificationsEnabled)
                 } header: {
                     Text("Notifications")

@@ -22,9 +22,20 @@ public struct JournalListView: View {
                                 EntryDetailView(entry: entry)
                             } label: {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(entry.content)
-                                        .lineLimit(2)
-                                        .font(.body)
+                                    if let title = entry.title, !title.isEmpty {
+                                        Text(title)
+                                            .font(.headline)
+                                            .lineLimit(1)
+
+                                        Text(entry.content)
+                                            .lineLimit(1)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    } else {
+                                        Text(entry.content)
+                                            .lineLimit(2)
+                                            .font(.body)
+                                    }
 
                                     HStack {
                                         Text(formatTime(entry.createdAt))

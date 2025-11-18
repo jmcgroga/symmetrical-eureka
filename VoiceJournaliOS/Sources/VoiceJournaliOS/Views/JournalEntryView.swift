@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import VoiceJournalCore
+import VoiceJournalStorage
 
 public struct JournalEntryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,6 +12,7 @@ public struct JournalEntryView: View {
     @State private var selectedDate = Date()
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isSaving = false
 
     public init() {}
 
@@ -95,9 +97,11 @@ public struct JournalEntryView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveEntry()
+                        Task {
+                            await saveEntry()
+                        }
                     }
-                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 }
             }
             .alert("Error", isPresented: $showingError) {
@@ -124,7 +128,11 @@ public struct JournalEntryView: View {
         }
     }
 
-    private func saveEntry() {
+    @MainActor
+    private func saveEntry() async {
+        isSaving = true
+        defer { isSaving = false }
+
         #if os(iOS)
         let platform: JournalEntry.Platform = UIDevice.current.userInterfaceIdiom == .pad ? .iPadOS : .iOS
         let deviceName = UIDevice.current.name
@@ -133,9 +141,22 @@ public struct JournalEntryView: View {
         let deviceName: String? = nil
         #endif
 
+        let content = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Generate title using AI
+        let settings = AppSettings.load()
+        let title: String?
+        do {
+            title = try await SummaryService.shared.generateTitle(for: content, mode: settings.aiSummarizationMode)
+        } catch {
+            // If title generation fails, continue without a title
+            title = nil
+        }
+
         let entry = JournalEntry(
             date: selectedDate,
-            content: entryText.trimmingCharacters(in: .whitespacesAndNewlines),
+            content: content,
+            title: title,
             platform: platform,
             deviceName: deviceName
         )

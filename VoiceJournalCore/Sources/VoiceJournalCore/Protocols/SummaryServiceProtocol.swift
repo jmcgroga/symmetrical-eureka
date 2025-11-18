@@ -5,4 +5,5 @@ import SwiftData
 public protocol SummaryServiceProtocol: Sendable {
     @MainActor func generateWeeklySummary(entries: [JournalEntry]) async throws -> String
     @MainActor func getWeeklyEntries(from modelContext: ModelContext) throws -> [JournalEntry]
+    @MainActor func generateTitle(for content: String, mode: AppSettings.AISummarizationMode) async throws -> String
 }
