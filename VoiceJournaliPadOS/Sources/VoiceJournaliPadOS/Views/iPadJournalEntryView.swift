@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import VoiceJournalCore
 import VoiceJournaliOS
+import VoiceJournalStorage
 #if os(iOS)
 import PencilKit
 #endif
@@ -17,6 +18,7 @@ public struct iPadJournalEntryView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var showingDrawingCanvas = false
+    @State private var isSaving = false
     #if os(iOS)
     @State private var canvasView = PKCanvasView()
     #endif
@@ -151,9 +153,11 @@ public struct iPadJournalEntryView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveEntry()
+                        Task {
+                            await saveEntry()
+                        }
                     }
-                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 }
             }
             .alert("Error", isPresented: $showingError) {
@@ -180,16 +184,33 @@ public struct iPadJournalEntryView: View {
         }
     }
 
-    private func saveEntry() {
+    @MainActor
+    private func saveEntry() async {
+        isSaving = true
+        defer { isSaving = false }
+
         #if os(iOS)
         let deviceName = UIDevice.current.name
         #else
         let deviceName: String? = nil
         #endif
 
+        let content = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Generate title using AI
+        let settings = AppSettings.load()
+        let title: String?
+        do {
+            title = try await SummaryService.shared.generateTitle(for: content, mode: settings.aiSummarizationMode)
+        } catch {
+            // If title generation fails, continue without a title
+            title = nil
+        }
+
         let entry = JournalEntry(
             date: selectedDate,
-            content: entryText.trimmingCharacters(in: .whitespacesAndNewlines),
+            content: content,
+            title: title,
             platform: .iPadOS,
             deviceName: deviceName
         )

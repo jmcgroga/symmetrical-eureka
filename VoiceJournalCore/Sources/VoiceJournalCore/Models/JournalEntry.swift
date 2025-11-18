@@ -7,6 +7,7 @@ public final class JournalEntry {
     public var id: UUID
     public var date: Date
     public var content: String
+    public var title: String? // AI-generated summary title
     public var createdAt: Date
     public var modifiedAt: Date
 
@@ -18,6 +19,7 @@ public final class JournalEntry {
         id: UUID = UUID(),
         date: Date = Date(),
         content: String = "",
+        title: String? = nil,
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
         platform: Platform = .iOS,
@@ -26,6 +28,7 @@ public final class JournalEntry {
         self.id = id
         self.date = date
         self.content = content
+        self.title = title
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.platform = platform

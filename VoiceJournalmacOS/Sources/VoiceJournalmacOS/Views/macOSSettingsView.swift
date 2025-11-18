@@ -56,6 +56,17 @@ public struct macOSSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                Section("AI Title Generation") {
+                    Picker("Apple Intelligence Mode", selection: $settings.aiSummarizationMode) {
+                        ForEach(AppSettings.AISummarizationMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    Text(settings.aiSummarizationMode.description + ". Entry titles are automatically generated using Apple Intelligence.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Notifications") {
                     Toggle("Enable Notifications", isOn: $settings.notificationsEnabled)
                     Text("Receive daily reminders to journal and weekly summary notifications")

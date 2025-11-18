@@ -25,10 +25,21 @@ public struct macOSJournalListView: View {
                                 Text(formatDate(entry.date))
                                     .font(.headline)
 
-                                Text(entry.content)
-                                    .lineLimit(2)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                if let title = entry.title, !title.isEmpty {
+                                    Text(title)
+                                        .lineLimit(1)
+                                        .font(.subheadline)
+
+                                    Text(entry.content)
+                                        .lineLimit(1)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text(entry.content)
+                                        .lineLimit(2)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
 
                                 if let device = entry.deviceName {
                                     Text(device)

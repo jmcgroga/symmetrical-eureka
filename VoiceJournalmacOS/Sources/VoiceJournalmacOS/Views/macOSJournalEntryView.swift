@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import VoiceJournalCore
+import VoiceJournalStorage
 
 public struct macOSJournalEntryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -11,6 +12,7 @@ public struct macOSJournalEntryView: View {
     @State private var selectedDate = Date()
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isSaving = false
 
     public init() {}
 
@@ -30,10 +32,12 @@ public struct macOSJournalEntryView: View {
                 .keyboardShortcut(.escape)
 
                 Button("Save") {
-                    saveEntry()
+                    Task {
+                        await saveEntry()
+                    }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(entryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 .buttonStyle(.borderedProminent)
             }
             .padding()
@@ -125,10 +129,27 @@ public struct macOSJournalEntryView: View {
         }
     }
 
-    private func saveEntry() {
+    @MainActor
+    private func saveEntry() async {
+        isSaving = true
+        defer { isSaving = false }
+
+        let content = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Generate title using AI
+        let settings = AppSettings.load()
+        let title: String?
+        do {
+            title = try await SummaryService.shared.generateTitle(for: content, mode: settings.aiSummarizationMode)
+        } catch {
+            // If title generation fails, continue without a title
+            title = nil
+        }
+
         let entry = JournalEntry(
             date: selectedDate,
-            content: entryText.trimmingCharacters(in: .whitespacesAndNewlines),
+            content: content,
+            title: title,
             platform: .macOS,
             deviceName: Host.current().localizedName
         )
