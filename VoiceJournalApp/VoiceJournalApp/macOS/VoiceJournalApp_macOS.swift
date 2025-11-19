@@ -7,12 +7,13 @@
 
 import SwiftUI
 import VoiceJournalStorage
+import VoiceJournalmacOS
 
 @main
 struct VoiceJournalApp_macOS: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            VoiceJournalmacOSApp()
         }
         .modelContainer(try! CloudKitSyncManager.shared.createModelContainer())
     }

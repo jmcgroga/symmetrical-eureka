@@ -34,15 +34,11 @@ public struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Apple Intelligence Mode", selection: $settings.aiSummarizationMode) {
-                        ForEach(AppSettings.AISummarizationMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
+                    Label("On-Device Processing", systemImage: "cpu")
                 } header: {
                     Text("AI Title Generation")
                 } footer: {
-                    Text(settings.aiSummarizationMode.description + ". Entry titles are automatically generated using Apple Intelligence.")
+                    Text("Entry titles are automatically generated on-device using Apple Intelligence for privacy.")
                 }
 
                 Section {

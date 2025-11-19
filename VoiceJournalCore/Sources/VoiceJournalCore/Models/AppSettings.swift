@@ -7,22 +7,19 @@ public struct AppSettings: Codable, Sendable {
     public var weeklyNotificationTime: DateComponents
     public var notificationsEnabled: Bool
     public var iCloudSyncEnabled: Bool
-    public var aiSummarizationMode: AISummarizationMode
 
     public init(
         dailyNotificationTime: DateComponents = DateComponents(hour: 20, minute: 0),
         weeklyNotificationDay: Int = 1,
         weeklyNotificationTime: DateComponents = DateComponents(hour: 10, minute: 0),
         notificationsEnabled: Bool = true,
-        iCloudSyncEnabled: Bool = true,
-        aiSummarizationMode: AISummarizationMode = .onDevice
+        iCloudSyncEnabled: Bool = true
     ) {
         self.dailyNotificationTime = dailyNotificationTime
         self.weeklyNotificationDay = weeklyNotificationDay
         self.weeklyNotificationTime = weeklyNotificationTime
         self.notificationsEnabled = notificationsEnabled
         self.iCloudSyncEnabled = iCloudSyncEnabled
-        self.aiSummarizationMode = aiSummarizationMode
     }
 
     // iCloud key-value store sync
@@ -56,24 +53,6 @@ public struct AppSettings: Codable, Sendable {
             let ubiquitousStore = NSUbiquitousKeyValueStore.default
             ubiquitousStore.set(data, forKey: "AppSettings")
             ubiquitousStore.synchronize()
-        }
-    }
-}
-
-// MARK: - AI Summarization Mode
-extension AppSettings {
-    /// Determines whether Apple Intelligence runs on-device or in the cloud
-    public enum AISummarizationMode: String, Codable, CaseIterable, Sendable {
-        case onDevice = "On-Device"
-        case cloud = "Cloud"
-
-        public var description: String {
-            switch self {
-            case .onDevice:
-                return "Process locally for privacy"
-            case .cloud:
-                return "Use cloud for enhanced capabilities"
-            }
         }
     }
 }

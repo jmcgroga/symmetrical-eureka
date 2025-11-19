@@ -57,12 +57,8 @@ public struct macOSSettingsView: View {
                 }
 
                 Section("AI Title Generation") {
-                    Picker("Apple Intelligence Mode", selection: $settings.aiSummarizationMode) {
-                        ForEach(AppSettings.AISummarizationMode.allCases, id: \.self) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    Text(settings.aiSummarizationMode.description + ". Entry titles are automatically generated using Apple Intelligence.")
+                    Label("On-Device Processing", systemImage: "cpu")
+                    Text("Entry titles are automatically generated on-device using Apple Intelligence for privacy.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

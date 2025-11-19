@@ -143,14 +143,13 @@ public struct JournalEntryView: View {
 
         let content = entryText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Generate title using AI
-        let settings = AppSettings.load()
-        let title: String?
+        // Generate title using AI, fall back to date-based title if it fails
+        let title: String
         do {
-            title = try await SummaryService.shared.generateTitle(for: content, mode: settings.aiSummarizationMode)
+            title = try await SummaryService.shared.generateTitle(for: content)
         } catch {
-            // If title generation fails, continue without a title
-            title = nil
+            // Use date-based default title if AI generation fails
+            title = SummaryService.shared.defaultTitle(for: selectedDate)
         }
 
         let entry = JournalEntry(

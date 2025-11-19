@@ -1,9 +1,26 @@
 import Foundation
 import SwiftData
 import VoiceJournalCore
-import NaturalLanguage
+import FoundationModels
 
-/// Shared summary service implementation
+/// Generated title structure for guided generation
+@Generable
+struct GeneratedTitle {
+    @Guide(description: "A concise, descriptive title for the journal entry (3-8 words)")
+    let title: String
+}
+
+/// Generated summary structure for guided generation
+@Generable
+struct GeneratedSummary {
+    @Guide(description: "Key themes identified in the journal entries")
+    let themes: [String]
+
+    @Guide(description: "A brief overall summary of the week's entries (2-3 sentences)")
+    let summary: String
+}
+
+/// Shared summary service implementation using Apple's Foundation Models framework
 public final class SummaryService: SummaryServiceProtocol, Sendable {
     public static let shared = SummaryService()
 
@@ -13,6 +30,12 @@ public final class SummaryService: SummaryServiceProtocol, Sendable {
     public func generateWeeklySummary(entries: [JournalEntry]) async throws -> String {
         guard !entries.isEmpty else {
             return "No journal entries found for this week."
+        }
+
+        // Check model availability safely
+        let model = SystemLanguageModel.default
+        guard case .available = model.availability else {
+            return generateFallbackSummary(entries: entries)
         }
 
         let combinedText = entries
@@ -26,7 +49,38 @@ public final class SummaryService: SummaryServiceProtocol, Sendable {
             }
             .joined(separator: "\n\n")
 
-        return try await generateSummaryText(from: combinedText, entryCount: entries.count)
+        let session = LanguageModelSession(instructions: """
+            You are a helpful assistant that summarizes journal entries.
+            Identify key themes, emotions, and notable events from the entries.
+            Be concise and insightful.
+            """)
+
+        do {
+            let response = try await session.respond(
+                to: "Summarize these journal entries from the past week:\n\n\(combinedText)",
+                generating: GeneratedSummary.self
+            )
+
+            let themes = response.content.themes.prefix(5).map { "• \($0)" }.joined(separator: "\n")
+
+            return """
+            📊 Weekly Journal Summary
+
+            This week you created \(entries.count) journal \(entries.count == 1 ? "entry" : "entries") across your devices.
+
+            ✨ Key Themes:
+            \(themes)
+
+            📝 Summary:
+            \(response.content.summary)
+
+            📱 Cross-Device Journaling:
+            Your entries are synchronized via iCloud and available on all your devices.
+            """
+        } catch {
+            // Fall back to basic summary if AI generation fails
+            return generateFallbackSummary(entries: entries)
+        }
     }
 
     @MainActor
@@ -47,14 +101,89 @@ public final class SummaryService: SummaryServiceProtocol, Sendable {
         return try modelContext.fetch(descriptor)
     }
 
-    private func generateSummaryText(from text: String, entryCount: Int) async throws -> String {
-        // Platform-specific Apple Intelligence integration would go here
-        // For now, provide a structured summary
+    /// Errors that can occur during title generation
+    public enum TitleGenerationError: LocalizedError {
+        case emptyContent
+        case modelUnavailable(String)
+        case generationFailed(Error)
+
+        public var errorDescription: String? {
+            switch self {
+            case .emptyContent:
+                return "Cannot generate title for empty content."
+            case .modelUnavailable(let reason):
+                return "Apple Intelligence is not available: \(reason)"
+            case .generationFailed(let error):
+                return "Failed to generate title: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    @MainActor
+    public func generateTitle(for content: String) async throws -> String {
+        guard !content.isEmpty else {
+            throw TitleGenerationError.emptyContent
+        }
+
+        // Check model availability safely
+        let model = SystemLanguageModel.default
+        switch model.availability {
+        case .available:
+            break
+        case .unavailable(let reason):
+            throw TitleGenerationError.modelUnavailable(String(describing: reason))
+        }
+
+        do {
+            let session = LanguageModelSession(instructions: """
+                Generate a concise, descriptive title for a journal entry.
+                The title should capture the main theme or topic in 3-8 words.
+                Do not use quotes or punctuation at the end.
+                """)
+
+            let response = try await session.respond(
+                to: "Generate a title for this journal entry:\n\n\(content.prefix(1000))",
+                generating: GeneratedTitle.self
+            )
+
+            let generatedTitle = response.content.title
+            if generatedTitle.isEmpty {
+                throw TitleGenerationError.generationFailed(NSError(domain: "SummaryService", code: -1, userInfo: [NSLocalizedDescriptionKey: "AI returned empty title"]))
+            }
+            return truncateTitle(generatedTitle)
+        } catch let error as TitleGenerationError {
+            throw error
+        } catch {
+            throw TitleGenerationError.generationFailed(error)
+        }
+    }
+
+    /// Generate a default title using the entry's creation date
+    public func defaultTitle(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return "Journal Entry: \(formatter.string(from: date))"
+    }
+
+    // MARK: - Fallback Methods
+
+    private func generateFallbackSummary(entries: [JournalEntry]) -> String {
+        let combinedText = entries
+            .sorted { $0.date < $1.date }
+            .map { entry in
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateStyle = .medium
+                let platform = entry.platform.rawValue
+                let device = entry.deviceName ?? "Unknown Device"
+                return "\(dateFormatter.string(from: entry.date)) (\(platform) - \(device)):\n\(entry.content)"
+            }
+            .joined(separator: "\n\n")
 
         return """
         📊 Weekly Journal Summary
 
-        This week you created \(entryCount) journal \(entryCount == 1 ? "entry" : "entries") across your devices.
+        This week you created \(entries.count) journal \(entries.count == 1 ? "entry" : "entries") across your devices.
 
         ✨ Key Themes:
         • Reflection and personal growth
@@ -66,126 +195,8 @@ public final class SummaryService: SummaryServiceProtocol, Sendable {
 
         ───────────────────
 
-        \(text)
+        \(combinedText)
         """
-    }
-
-    @MainActor
-    public func generateTitle(for content: String, mode: AppSettings.AISummarizationMode) async throws -> String {
-        guard !content.isEmpty else {
-            return "Untitled Entry"
-        }
-
-        switch mode {
-        case .onDevice:
-            return try await generateTitleOnDevice(for: content)
-        case .cloud:
-            return try await generateTitleInCloud(for: content)
-        }
-    }
-
-    // MARK: - On-Device Title Generation
-    @MainActor
-    private func generateTitleOnDevice(for content: String) async throws -> String {
-        // Use NaturalLanguage framework for on-device processing
-        let tagger = NLTagger(tagSchemes: [.nameType, .lexicalClass])
-        tagger.string = content
-
-        // Extract key phrases and entities
-        var keywords: [String] = []
-        let options: NLTagger.Options = [.omitPunctuation, .omitWhitespace]
-
-        tagger.enumerateTags(in: content.startIndex..<content.endIndex,
-                            unit: .word,
-                            scheme: .lexicalClass,
-                            options: options) { tag, tokenRange in
-            if let tag = tag, tag == .noun || tag == .verb {
-                let word = String(content[tokenRange])
-                if word.count > 3 {  // Filter short words
-                    keywords.append(word)
-                }
-            }
-            return true
-        }
-
-        // Generate title from first sentence or key phrases
-        if let firstSentence = extractFirstSentence(from: content) {
-            return truncateTitle(firstSentence)
-        }
-
-        // Fallback: use first few words
-        let words = content.split(separator: " ").prefix(5)
-        if !words.isEmpty {
-            return truncateTitle(words.joined(separator: " "))
-        }
-
-        return "Untitled Entry"
-    }
-
-    // MARK: - Cloud-Based Title Generation
-    @MainActor
-    private func generateTitleInCloud(for content: String) async throws -> String {
-        // For cloud-based processing, we'll use a more sophisticated approach
-        // In a real implementation, this would call Apple Intelligence cloud APIs
-        // For now, we'll use enhanced on-device processing with better algorithms
-
-        let cleaned = cleanText(content)
-
-        // Try to extract the main theme or topic
-        let tagger = NLTagger(tagSchemes: [.nameType, .lemma])
-        tagger.string = cleaned
-
-        var entities: [String] = []
-        tagger.enumerateTags(in: cleaned.startIndex..<cleaned.endIndex,
-                           unit: .word,
-                           scheme: .nameType,
-                           options: [.omitPunctuation, .omitWhitespace]) { tag, tokenRange in
-            if let tag = tag {
-                let entity = String(cleaned[tokenRange])
-                entities.append(entity)
-            }
-            return true
-        }
-
-        // If we found named entities, use them in the title
-        if !entities.isEmpty {
-            let title = entities.prefix(3).joined(separator: ", ")
-            return truncateTitle(title)
-        }
-
-        // Extract first meaningful sentence
-        if let firstSentence = extractFirstSentence(from: cleaned) {
-            return truncateTitle(firstSentence)
-        }
-
-        // Fallback to first few words
-        let words = cleaned.split(separator: " ").prefix(6)
-        if !words.isEmpty {
-            return truncateTitle(words.joined(separator: " "))
-        }
-
-        return "Untitled Entry"
-    }
-
-    // MARK: - Helper Methods
-    private func extractFirstSentence(from text: String) -> String? {
-        let tokenizer = NLTokenizer(unit: .sentence)
-        tokenizer.string = text
-
-        if let range = tokenizer.tokenRange(at: text.startIndex) {
-            return String(text[range])
-        }
-
-        return nil
-    }
-
-    private func cleanText(_ text: String) -> String {
-        // Remove extra whitespace and newlines
-        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let singleSpaced = cleaned.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        return singleSpaced
     }
 
     private func truncateTitle(_ title: String, maxLength: Int = 60) -> String {
