@@ -8,7 +8,6 @@ public struct macOSJournalListView: View {
 
     @State private var showingNewEntry = false
     @State private var showingWeeklySummary = false
-    @State private var showingSettings = false
     @State private var selectedEntry: JournalEntry?
     @State private var searchText = ""
 
@@ -70,14 +69,6 @@ public struct macOSJournalListView: View {
                             Label("Weekly Summary", systemImage: "chart.bar.doc.horizontal")
                         }
                     }
-
-                    ToolbarItem {
-                        Button {
-                            showingSettings = true
-                        } label: {
-                            Label("Settings", systemImage: "gear")
-                        }
-                    }
                 }
             }
         } detail: {
@@ -96,9 +87,6 @@ public struct macOSJournalListView: View {
         }
         .sheet(isPresented: $showingWeeklySummary) {
             macOSWeeklySummaryView()
-        }
-        .sheet(isPresented: $showingSettings) {
-            macOSSettingsView()
         }
     }
 

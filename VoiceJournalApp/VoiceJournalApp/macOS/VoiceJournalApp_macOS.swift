@@ -16,5 +16,9 @@ struct VoiceJournalApp_macOS: App {
             VoiceJournalmacOSApp()
         }
         .modelContainer(try! CloudKitSyncManager.shared.createModelContainer())
+
+        Settings {
+            macOSSettingsView()
+        }
     }
 }

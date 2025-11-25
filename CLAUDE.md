@@ -127,7 +127,7 @@ Each directory is an independent Swift Package with its own `Package.swift`.
   - `macOSJournalEntryView.swift` - Entry creation
   - `macOSEntryDetailView.swift` - Detail view
   - `macOSWeeklySummaryView.swift` - Summary
-  - `macOSSettingsView.swift` - Settings
+  - `macOSSettingsView.swift` - Settings (auto-save, no Save/Cancel buttons)
 - `VoiceJournalmacOSApp.swift` - Root view
 
 **Key Points**:
@@ -136,6 +136,44 @@ Each directory is an independent Swift Package with its own `Package.swift`.
 - Search functionality in sidebar
 - macOS-specific UI patterns (sheets with explicit sizes)
 - Host.current().localizedName for device name
+- Settings accessible via standard Application menu (⌘,)
+- Settings auto-save on change, no manual Save/Cancel buttons
+
+#### VoiceJournalApp (VoiceJournalApp/)
+**Purpose**: Multi-platform app project integrating all packages
+**Platforms**: iOS 18+, iPadOS 18+, macOS 15+
+**Dependencies**: All platform packages
+
+**Structure**:
+```
+VoiceJournalApp/
+├── VoiceJournalApp.xcodeproj/    # Xcode project
+├── VoiceJournalApp/
+│   ├── Shared/
+│   │   └── Assets.xcassets/      # App icons and launch assets
+│   │       ├── AppIcon.appiconset/
+│   │       └── LaunchIcon.imageset/  # Launch screen icon
+│   ├── iOS/
+│   │   ├── VoiceJournalApp_iOS.swift
+│   │   └── LaunchScreen.storyboard
+│   ├── iPadOS/
+│   │   ├── VoiceJournalApp_iPadOS.swift
+│   │   └── LaunchScreen.storyboard
+│   └── macOS/
+│       └── VoiceJournalApp_macOS.swift
+├── VoiceJournalApp (iOS).entitlements
+├── VoiceJournalApp (iPadOS).entitlements
+└── VoiceJournalApp (macOS).entitlements
+```
+
+**Key Points**:
+- Single Xcode project with three targets (iOS, iPadOS, macOS)
+- App display name: "Voice Journal" (via `INFOPLIST_KEY_CFBundleDisplayName`)
+- Product name: "Voice Journal" (via `PRODUCT_NAME`)
+- Custom launch screens for iOS/iPadOS showing app icon
+- macOS uses Settings scene for standard ⌘, settings access
+- Shared Assets.xcassets for icons across all platforms
+- Platform-specific entitlements for iCloud, microphone, speech recognition
 
 ## Build Commands
 
@@ -208,6 +246,27 @@ Note: Each package must be built from its own directory.
 - Use AppKit interop where needed
 - Follow macOS HIG (Human Interface Guidelines)
 
+### Launch Screens (iOS/iPadOS)
+
+**Implementation:**
+- Custom `LaunchScreen.storyboard` files for iOS and iPadOS
+- Display centered app icon (150x150 pt) during app startup
+- Reference `LaunchIcon` image from Assets.xcassets
+- System background color (adapts to light/dark mode)
+
+**Important Notes:**
+- Cannot use `AppIcon` directly in storyboards (it's an `.appiconset`)
+- Must create separate `LaunchIcon.imageset` with same icon
+- Launch screens are cached aggressively by iOS
+- To see changes: delete app, reset simulator, or restart device
+- Build setting: `INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen`
+- Automatic generation disabled: `INFOPLIST_KEY_UILaunchScreen_Generation` removed
+
+**File Locations:**
+- `VoiceJournalApp/VoiceJournalApp/iOS/LaunchScreen.storyboard`
+- `VoiceJournalApp/VoiceJournalApp/iPadOS/LaunchScreen.storyboard`
+- `VoiceJournalApp/VoiceJournalApp/Shared/Assets.xcassets/LaunchIcon.imageset/`
+
 ### Testing Across Platforms
 
 1. Create iOS app project, import `VoiceJournaliOS`
@@ -255,9 +314,19 @@ struct MyMacApp: App {
             VoiceJournalmacOSApp()
         }
         .modelContainer(try! CloudKitSyncManager.shared.createModelContainer())
+
+        Settings {
+            macOSSettingsView()
+        }
     }
 }
 ```
+
+**macOS Settings Integration:**
+- Use `.Settings` scene to add standard Settings menu item (⌘,)
+- Settings view uses auto-save pattern (no Save/Cancel buttons)
+- Settings accessible only via Application menu, not toolbar
+- Changes saved immediately via `.onChange` modifiers
 
 ### Required Capabilities
 

@@ -2,8 +2,6 @@ import SwiftUI
 import VoiceJournalCore
 
 public struct macOSSettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-
     @State private var settings = AppSettings.load()
     @State private var dailyNotificationDate = Date()
     @State private var weeklyNotificationDate = Date()
@@ -23,34 +21,14 @@ public struct macOSSettingsView: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
-                Text("Settings")
-                    .font(.title)
-                    .fontWeight(.bold)
-
-                Spacer()
-
-                Button("Cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.escape)
-
-                Button("Save") {
-                    saveSettings()
-                }
-                .keyboardShortcut(.return, modifiers: .command)
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-
-            Divider()
-
+        VStack(spacing: 0) {
             // Content
             Form {
                 Section("iCloud") {
                     Toggle("Enable iCloud Sync", isOn: $settings.iCloudSyncEnabled)
+                        .onChange(of: settings.iCloudSyncEnabled) { _, _ in
+                            saveSettings()
+                        }
                     Text("Sync your journal entries across all your devices using iCloud")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -65,6 +43,9 @@ public struct macOSSettingsView: View {
 
                 Section("Notifications") {
                     Toggle("Enable Notifications", isOn: $settings.notificationsEnabled)
+                        .onChange(of: settings.notificationsEnabled) { _, _ in
+                            saveSettings()
+                        }
                     Text("Receive daily reminders to journal and weekly summary notifications")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -80,6 +61,7 @@ public struct macOSSettingsView: View {
                         .onChange(of: dailyNotificationDate) { _, newValue in
                             let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
                             settings.dailyNotificationTime = components
+                            saveSettings()
                         }
 
                         Text("You'll receive a daily reminder to write in your journal")
@@ -93,6 +75,9 @@ public struct macOSSettingsView: View {
                                 Text(weekday.1).tag(weekday.0)
                             }
                         }
+                        .onChange(of: settings.weeklyNotificationDay) { _, _ in
+                            saveSettings()
+                        }
 
                         DatePicker(
                             "Time",
@@ -102,6 +87,7 @@ public struct macOSSettingsView: View {
                         .onChange(of: weeklyNotificationDate) { _, newValue in
                             let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
                             settings.weeklyNotificationTime = components
+                            saveSettings()
                         }
 
                         Text("Receive a weekly summary of your journal entries")
@@ -125,7 +111,7 @@ public struct macOSSettingsView: View {
             .formStyle(.grouped)
             .padding()
         }
-        .frame(width: 500, height: 600)
+        .frame(width: 500, height: 550)
         .alert("Error", isPresented: $showingError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -160,7 +146,6 @@ public struct macOSSettingsView: View {
         Task {
             do {
                 try await macOSNotificationService.shared.updateNotifications(settings: settings)
-                dismiss()
             } catch {
                 errorMessage = "Failed to update notifications: \(error.localizedDescription)"
                 showingError = true
